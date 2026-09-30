@@ -1,0 +1,55 @@
+:root {
+  color: #e2e8f0;
+  background: #0f172a;
+  font-family: system-ui, sans-serif;
+}
+
+body { margin: 0; }
+
+main { max-width: 960px; margin: 0 auto; padding: 24px; }
+
+a { color: #93c5fd; }
+
+button, input, select {
+  font: inherit;
+  color: inherit;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+button { cursor: pointer; }
+button[aria-pressed="true"] { background: #1d4ed8; border-color: #60a5fa; }
+
+label { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+
+.card, section.card {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px 0;
+}
+
+.bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.muted { color: #94a3b8; }
+.error { color: #fca5a5; }
+
+.partition-list { list-style: none; padding: 0; }
+.partition-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #334155;
+}
+
+table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #334155; }
