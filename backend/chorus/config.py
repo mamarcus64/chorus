@@ -38,6 +38,6 @@ def settings() -> Settings:
         root=Path(os.environ.get("CHORUS_ROOT", str(_DEFAULT_ROOT))).expanduser(),
         secret_key=os.environ.get("CHORUS_SECRET_KEY", "dev-only-change-me"),
         registration_key=os.environ.get("CHORUS_REGISTRATION_KEY", ""),
-        port=int(os.environ.get("CHORUS_PORT", "8733")),
+        port=int(os.environ.get("CHORUS_PORT", "1945")),
         projects=projects,
     )

@@ -1,0 +1,22 @@
+---
+description: Require explicit permission before any external network access
+alwaysApply: true
+---
+
+# No external networking without permission
+
+Get explicit permission in the current user message before any external network access. Permission from an earlier turn does not carry forward. A standing "you may ssh" from a previous message is not permission for this one.
+
+External networking includes SSH, SCP, rsync to a remote host, curl or wget to a host the user did not already ask you to reach, AWS CLI calls, git push, git fetch, and opening a socket to a machine that is not this one. Reading local connection files is allowed. Using them is not.
+
+When the user does give permission, do only the action they named. Read permission is not permission to write, install, delete, restart, or deploy. If a command would change the remote machine, stop and ask.
+
+The Chorus EC2 key and SSH config live in `/data/mjma/chorus/aws-connection`. Having those files is not permission to connect.
+
+```bash
+# ❌ BAD — connects because the key is on disk
+ssh -i /data/mjma/chorus/aws-connection/voices_smiling_key.pem ec2-user@<host> 'df -h'
+
+# ✅ GOOD — the current message says "you may ssh and only run df"
+ssh -i /data/mjma/chorus/aws-connection/voices_smiling_key.pem ec2-user@<host> 'df -h'
+```

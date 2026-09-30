@@ -21,7 +21,7 @@ bash scripts/setup.sh
 bash scripts/start.sh
 ```
 
-Open http://localhost:8733 . The site redirects to `/p/voices`.
+Open http://localhost:1945 . The site redirects to `/p/voices`.
 
 `setup.sh` creates a conda env named `chorus` (Python 3.12 and Node), installs this package, builds the frontend, applies migrations, and links the operator scripts into `../db` and `../data`.
 

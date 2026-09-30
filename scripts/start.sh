@@ -13,7 +13,7 @@ if [[ -f "$REPO/.env" ]]; then
 fi
 export CHORUS_ROOT="${CHORUS_ROOT:-$ROOT}"
 export PYTHONPATH="$REPO/backend${PYTHONPATH:+:$PYTHONPATH}"
-PORT="${CHORUS_PORT:-8733}"
+PORT="${CHORUS_PORT:-1945}"
 
 CONDA="${CONDA_EXE:-}"
 if [[ -z "$CONDA" && -x /data2/mjma/miniconda3/bin/conda ]]; then

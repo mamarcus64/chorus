@@ -21,7 +21,7 @@ def chorus_root(tmp_path, monkeypatch):
     monkeypatch.setenv("CHORUS_SECRET_KEY", "test-secret")
     monkeypatch.setenv("CHORUS_REGISTRATION_KEY", "test-reg-key")
     monkeypatch.setenv("CHORUS_PROJECTS", "voices")
-    monkeypatch.setenv("CHORUS_PORT", "8733")
+    monkeypatch.setenv("CHORUS_PORT", "1945")
     return root
 
 
