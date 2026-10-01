@@ -12,6 +12,7 @@ from chorus.api.deps import current_user, get_conn, public_user
 from chorus.auth import (
     COOKIE,
     MAX_AGE,
+    admin_key_ok,
     dump_session,
     hash_password,
     registration_key_ok,
@@ -33,6 +34,7 @@ class RegisterBody(BaseModel):
 class LoginBody(BaseModel):
     username: str
     password: str
+    admin_key: str = ""
 
 
 def _set_session(response: Response, project: str, user_id: str) -> None:
@@ -84,6 +86,12 @@ def login(
     user = users.get_user_by_username(conn, body.username.strip())
     if user is None or not verify_password(user["password_hash"], body.password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
+    admin_key = body.admin_key.strip()
+    if admin_key:
+        if not admin_key_ok(admin_key):
+            raise HTTPException(status_code=403, detail="Admin key is not valid")
+        if not user["is_admin"]:
+            user = users.set_admin(conn, user["id"])
     _set_session(response, project, user["id"])
     return public_user(user)
 

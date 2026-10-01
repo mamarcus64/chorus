@@ -145,4 +145,8 @@ def open_range_response(path: Path, request: Request) -> Response:
 def file_response(path: Path, request: Request) -> Response:
     if is_video(path):
         return open_range_response(path, request)
-    return FileResponse(path, media_type=media_type(path))
+    return FileResponse(
+        path,
+        media_type=media_type(path),
+        headers={"Cache-Control": "private, max-age=86400"},
+    )

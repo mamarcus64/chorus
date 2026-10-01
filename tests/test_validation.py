@@ -9,6 +9,7 @@ from projects.voices.validation import (
     absorb,
     assemble,
     collection_need,
+    eye_centers,
     hits_from_frames,
     make_locator,
     need_by_source,
@@ -84,6 +85,33 @@ def test_fifth_face_is_left_out_of_the_several_stratum():
     several = [face for name, face in strata_for_faces(faces, 320, 240) if name == "several"]
     assert len(several) == 4
     assert all(face["face"] < 4 for face in several)
+
+
+def test_pilot_questions_use_the_answer_words():
+    by_name = {question.name: question for question in questions("pilot")}
+    assert [label for _value, label, _key in by_name["Survivor, present day"].choices] == [
+        "Survivor in Present Day",
+        "Picture/Other Person",
+        "Not a Person",
+        "Unsure",
+    ]
+    assert [label for _value, label, _key in by_name["Eyes closed"].choices] == ["Open", "Closed", "Unsure"]
+    assert [label for _value, label, _key in by_name["Mouth open"].choices] == ["Open", "Closed", "Unsure"]
+    assert [label for _value, label, _key in by_name["Smile"].choices] == ["Smiling", "Not Smiling", "Unsure"]
+    assert by_name["Gaze direction"].overlays == ("gaze",)
+    assert by_name["Head direction"].overlays == ("pose",)
+    assert [label for _value, label, _key in by_name["Gaze direction"].choices] == [
+        "Aligned",
+        "Not aligned",
+        "Unsure",
+    ]
+
+
+def test_eye_centers_average_each_eye():
+    points = [[float(index), float(index)] for index in range(68)]
+    right, left = eye_centers(points)
+    assert right == [38.5, 38.5]
+    assert left == [44.5, 44.5]
 
 
 def test_pilot_and_confirmation_counts():

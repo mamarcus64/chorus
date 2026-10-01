@@ -15,6 +15,7 @@ class Settings:
     root: Path
     secret_key: str
     registration_key: str
+    admin_key: str
     port: int
     projects: tuple[str, ...]
 
@@ -38,6 +39,7 @@ def settings() -> Settings:
         root=Path(os.environ.get("CHORUS_ROOT", str(_DEFAULT_ROOT))).expanduser(),
         secret_key=os.environ.get("CHORUS_SECRET_KEY", "dev-only-change-me"),
         registration_key=os.environ.get("CHORUS_REGISTRATION_KEY", ""),
+        admin_key=os.environ.get("CHORUS_ADMIN_KEY", ""),
         port=int(os.environ.get("CHORUS_PORT", "1945")),
         projects=projects,
     )

@@ -130,5 +130,6 @@ def test_answer_completes_the_partition_and_admin_can_narrow_it(client, migrated
     media = client.get("/api/p/voices/media/still%3Ausc%3A10.1%3A4")
     assert media.status_code == 200
     assert media.content.startswith(b"\xff\xd8")
+    assert "max-age=86400" in media.headers["cache-control"]
     client.post("/api/p/voices/auth/logout")
     assert client.get("/api/p/voices/media/still%3Ausc%3A10.1%3A4").status_code == 401

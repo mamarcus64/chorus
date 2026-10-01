@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { mediaUrl, type ItemRecord, type TaskConfig } from "../../api";
 import FrameView from "../../stimulus/FrameView";
 import type { FrameFeatures } from "../../stimulus/overlays";
@@ -18,7 +18,51 @@ function referenceIds(locator: Record<string, unknown>): string[] {
   return refs.filter((item): item is string => typeof item === "string" && item.length > 0);
 }
 
+function ReferenceImage({ src, alt }: { src: string; alt: string }) {
+  const [attempt, setAttempt] = useState(0);
+  const [broken, setBroken] = useState(false);
+  const shown = attempt > 0 ? `${src}${src.includes("?") ? "&" : "?"}retry=${attempt}` : src;
+
+  useEffect(() => {
+    setAttempt(0);
+    setBroken(false);
+  }, [src]);
+
+  if (broken) {
+    return (
+      <button
+        type="button"
+        className="still-retry"
+        onClick={() => {
+          setBroken(false);
+          setAttempt((value) => value + 1);
+        }}
+      >
+        Retry
+      </button>
+    );
+  }
+
+  return (
+    <img
+      src={shown}
+      alt={alt}
+      decoding="async"
+      onError={() => {
+        if (attempt < 3) setAttempt((value) => value + 1);
+        else setBroken(true);
+      }}
+    />
+  );
+}
+
 function stageNote(overlays: string[]): string {
+  if (overlays.includes("gaze")) {
+    return "An arrow is the estimated direction of each eye. A circle means the estimate points toward the camera.";
+  }
+  if (overlays.includes("pose")) {
+    return "Red is left–right, green is up–down, and blue is the direction the face points. Blue shrinks to a dot when the estimate faces the camera.";
+  }
   const notes: string[] = [];
   if (overlays.includes("bbox")) notes.push("The box is the region to judge.");
   if (overlays.includes("landmarks")) {
@@ -31,6 +75,8 @@ export default function FrameChoice({ project, task, item, answer, onAnswer, dis
   const { choices, overlays, prompt } = task.config;
   const still = String(item.locator.still ?? "");
   const references = referenceIds(item.locator);
+  const paired = overlays.includes("gaze") || overlays.includes("pose");
+  const features = item.features as FrameFeatures;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -45,6 +91,16 @@ export default function FrameChoice({ project, task, item, answer, onAnswer, dis
     return () => window.removeEventListener("keydown", onKey);
   }, [choices, disabled, onAnswer]);
 
+  const judged = (
+    <FrameView
+      src={mediaUrl(project, still)}
+      features={features}
+      overlays={paired ? [] : overlays}
+      maxHeight={references.length > 0 ? "48vh" : paired ? "62vh" : "68vh"}
+      alt="Frame to judge"
+    />
+  );
+
   return (
     <div className="choice-task">
       <h2 className="prompt">{prompt}</h2>
@@ -54,7 +110,7 @@ export default function FrameChoice({ project, task, item, answer, onAnswer, dis
           <p className="muted">Other moments from this interview. Not the frame to judge.</p>
           <div className="reference-row">
             {references.map((fileId, index) => (
-              <img
+              <ReferenceImage
                 key={fileId}
                 src={mediaUrl(project, fileId)}
                 alt={`Other frame ${index + 1} from this interview`}
@@ -64,13 +120,29 @@ export default function FrameChoice({ project, task, item, answer, onAnswer, dis
         </section>
       )}
       <div className="judge-card">
-        {references.length > 0 && <p className="stage-label">Frame to judge</p>}
-        <FrameView
-          src={mediaUrl(project, still)}
-          features={item.features as FrameFeatures}
-          overlays={overlays}
-          maxHeight={references.length > 0 ? "54vh" : "68vh"}
-        />
+        {paired ? (
+          <div className="compare">
+            <figure>
+              <figcaption>Photograph</figcaption>
+              {judged}
+            </figure>
+            <figure>
+              <figcaption>Estimate</figcaption>
+              <FrameView
+                src={mediaUrl(project, still)}
+                features={features}
+                overlays={overlays}
+                maxHeight="62vh"
+                alt="Frame with the estimate drawn on it"
+              />
+            </figure>
+          </div>
+        ) : (
+          <>
+            {references.length > 0 && <p className="stage-label">Frame to judge</p>}
+            {judged}
+          </>
+        )}
         {stageNote(overlays) && <p className="stage-note">{stageNote(overlays)}</p>}
       </div>
       <div className="choices" role="group" aria-label={prompt}>

@@ -29,12 +29,7 @@ Open http://localhost:1945 . The site redirects to `/p/voices`.
 
 Registration asks for the registration key from `.env`. Passwords are stored as argon2 hashes. The session is a signed cookie.
 
-Admin is not granted by the site. Set it in the database:
-
-```bash
-sqlite3 ../db/voices.sqlite \
-  "UPDATE users SET is_admin=1, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE username='ada';"
-```
+Signing in with `CHORUS_ADMIN_KEY` sets `is_admin` on that account. Later sign-ins are username and password only. The same account still annotates from Home. Admin is where assignment and archive are changed.
 
 ## Work model
 

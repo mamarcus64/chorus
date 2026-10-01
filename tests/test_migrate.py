@@ -1,5 +1,25 @@
+import threading
+
 from chorus.db.connection import connect
 from chorus.db.migrate import migrate
+
+
+def test_connection_can_be_used_from_another_thread(chorus_root):
+    migrate("voices")
+    conn = connect("voices")
+    errors: list[BaseException] = []
+
+    def work() -> None:
+        try:
+            conn.execute("SELECT 1").fetchone()
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(target=work)
+    thread.start()
+    thread.join()
+    conn.close()
+    assert errors == []
 
 
 def test_migrations_apply_once(chorus_root):

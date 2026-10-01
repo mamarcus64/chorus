@@ -30,6 +30,7 @@ from projects.voices.validation import (  # noqa: E402
     TapeSpan,
     absorb,
     hits_from_frames,
+    eye_centers,
     make_features,
     make_locator,
     assemble,
@@ -58,6 +59,8 @@ _COLUMNS = [
     "AU43",
     "gaze_yaw",
     "gaze_pitch",
+    "Pitch",
+    "Roll",
     "Yaw",
 ]
 
@@ -88,6 +91,8 @@ def load_video_hits(video: Video) -> dict[str, list[FaceHit]]:
                 "au43": columns["AU43"][index],
                 "gaze_yaw": columns["gaze_yaw"][index],
                 "gaze_pitch": columns["gaze_pitch"][index],
+                "head_pitch": columns["Pitch"][index],
+                "head_roll": columns["Roll"][index],
                 "head_yaw": columns["Yaw"][index],
                 "time_s": columns["time_s"][index],
             }
@@ -277,9 +282,14 @@ def write_questions(
                 locator = make_locator(item)
                 file_id = locator["still"]
                 landmarks = None
-                if question.landmarks:
-                    landmarks = load_landmarks(video, item.hit.frame, item.hit.face)
-                features = make_features(item, sizes[file_id], landmarks)
+                eyes = None
+                if question.landmarks or "gaze" in question.overlays:
+                    points = load_landmarks(video, item.hit.frame, item.hit.face)
+                    if question.landmarks:
+                        landmarks = points
+                    if "gaze" in question.overlays:
+                        eyes = eye_centers(points)
+                features = make_features(item, sizes[file_id], landmarks, eyes)
                 TASK_TYPE.validate_item("frame", locator, features)
                 planned.append((ordinal, locator, features))
             incoming_ids = {item_id(partition["id"], locator) for _, locator, _features in planned}

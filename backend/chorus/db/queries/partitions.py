@@ -157,3 +157,125 @@ def admin_rows(conn: sqlite3.Connection) -> list[dict]:
         item["config"] = loads(item["config"], {})
         out.append(item)
     return out
+
+
+def summary_rows(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT
+          p.id, p.name, p.assignment, p.archived_at,
+          t.name AS task_name, t.code_key,
+          (SELECT COUNT(*) FROM items i WHERE i.partition_id = p.id) AS item_count,
+          (SELECT COUNT(*) FROM partition_assignees pa WHERE pa.partition_id = p.id) AS assignee_count,
+          (SELECT COUNT(DISTINCT a.user_id)
+             FROM annotations a
+             JOIN items i ON i.id = a.item_id
+             WHERE i.partition_id = p.id) AS annotator_count,
+          (SELECT COUNT(*) FROM partition_assignees pa
+             WHERE pa.partition_id = p.id
+             AND EXISTS (
+               SELECT 1 FROM annotations a
+               JOIN items i ON i.id = a.item_id
+               WHERE i.partition_id = p.id AND a.user_id = pa.user_id
+             )) AS assigned_started,
+          (SELECT COUNT(*) FROM partition_progress pr
+             WHERE pr.partition_id = p.id AND pr.status = 'done') AS done_count
+        FROM partitions p
+        JOIN tasks t ON t.id = p.task_id
+        ORDER BY p.archived_at IS NOT NULL, t.name, p.name
+        """
+    ).fetchall()
+    return [row_dict(row) for row in rows]  # type: ignore[misc]
+
+
+def partition_user_rows(conn: sqlite3.Connection, partition_id: str) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT
+          u.id, u.username, u.is_admin,
+          COALESCE(c.n, 0) AS answered_count,
+          pr.status AS status,
+          pr.done_via AS done_via,
+          CASE WHEN pa.user_id IS NULL THEN 0 ELSE 1 END AS is_assignee
+        FROM users u
+        LEFT JOIN (
+          SELECT a.user_id AS user_id, COUNT(*) AS n
+          FROM annotations a
+          JOIN items i ON i.id = a.item_id
+          WHERE i.partition_id = ?
+          GROUP BY a.user_id
+        ) c ON c.user_id = u.id
+        LEFT JOIN partition_progress pr
+          ON pr.user_id = u.id AND pr.partition_id = ?
+        LEFT JOIN partition_assignees pa
+          ON pa.user_id = u.id AND pa.partition_id = ?
+        ORDER BY u.username COLLATE NOCASE
+        """,
+        (partition_id, partition_id, partition_id),
+    ).fetchall()
+    return [row_dict(row) for row in rows]  # type: ignore[misc]
+
+
+def person_partition_rows(conn: sqlite3.Connection, user_id: str) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT
+          p.id, p.name, p.assignment, p.archived_at,
+          t.name AS task_name,
+          (SELECT COUNT(*) FROM items i WHERE i.partition_id = p.id) AS item_count,
+          EXISTS (
+            SELECT 1 FROM partition_assignees pa
+            WHERE pa.partition_id = p.id AND pa.user_id = ?
+          ) AS is_assignee,
+          (SELECT COUNT(*) FROM annotations a
+             JOIN items i ON i.id = a.item_id
+             WHERE i.partition_id = p.id AND a.user_id = ?) AS answered_count,
+          pr.status AS status,
+          pr.done_via AS done_via
+        FROM partitions p
+        JOIN tasks t ON t.id = p.task_id
+        LEFT JOIN partition_progress pr
+          ON pr.partition_id = p.id AND pr.user_id = ?
+        ORDER BY p.archived_at IS NOT NULL, t.name, p.name
+        """,
+        (user_id, user_id, user_id),
+    ).fetchall()
+    out = []
+    for row in rows:
+        item = row_dict(row)
+        assert item is not None
+        item["is_assignee"] = bool(item["is_assignee"])
+        out.append(item)
+    return out
+
+
+def set_user_selected_membership(
+    conn: sqlite3.Connection, user_id: str, partition_ids: list[str]
+) -> None:
+    """Replace this user's place on every selected partition. Everyone-mode rows stay put."""
+    now = utcnow()
+    rows = conn.execute("SELECT id, assignment FROM partitions").fetchall()
+    known = {row["id"]: row["assignment"] for row in rows}
+    for partition_id in partition_ids:
+        if partition_id not in known:
+            raise KeyError(partition_id)
+        if known[partition_id] != "selected":
+            raise ValueError(partition_id)
+    wanted = set(partition_ids)
+    selected = [partition_id for partition_id, mode in known.items() if mode == "selected"]
+    for partition_id in selected:
+        if partition_id in wanted:
+            conn.execute(
+                """
+                INSERT INTO partition_assignees (partition_id, user_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(partition_id, user_id) DO UPDATE SET updated_at = excluded.updated_at
+                """,
+                (partition_id, user_id, now, now),
+            )
+        else:
+            conn.execute(
+                "DELETE FROM partition_assignees WHERE partition_id = ? AND user_id = ?",
+                (partition_id, user_id),
+            )
+    conn.commit()

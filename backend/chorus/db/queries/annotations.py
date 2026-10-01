@@ -69,6 +69,21 @@ def count_for_user_partition(conn: sqlite3.Connection, user_id: str, partition_i
     return int(row["n"])
 
 
+def choice_counts(conn: sqlite3.Connection, partition_id: str) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT json_extract(a.value, '$.choice') AS choice, COUNT(*) AS n
+        FROM annotations a
+        JOIN items i ON i.id = a.item_id
+        WHERE i.partition_id = ?
+        GROUP BY choice
+        ORDER BY n DESC, choice
+        """,
+        (partition_id,),
+    ).fetchall()
+    return [{"choice": row["choice"], "count": int(row["n"])} for row in rows]
+
+
 def counts_by_user(conn: sqlite3.Connection, partition_id: str) -> dict[str, int]:
     rows = conn.execute(
         """

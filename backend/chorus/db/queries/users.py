@@ -41,3 +41,31 @@ def get_user_by_username(conn: sqlite3.Connection, username: str) -> dict | None
 def list_users(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute("SELECT * FROM users ORDER BY username COLLATE NOCASE").fetchall()
     return [row_dict(row) for row in rows]  # type: ignore[misc]
+
+
+def set_admin(conn: sqlite3.Connection, user_id: str) -> dict:
+    now = utcnow()
+    conn.execute(
+        "UPDATE users SET is_admin = 1, updated_at = ? WHERE id = ?",
+        (now, user_id),
+    )
+    conn.commit()
+    user = get_user(conn, user_id)
+    assert user is not None
+    return user
+
+
+def people_rows(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT
+          u.id, u.username, u.is_admin,
+          (SELECT COUNT(*) FROM partition_assignees pa WHERE pa.user_id = u.id) AS selected_count,
+          (SELECT COUNT(*) FROM annotations a WHERE a.user_id = u.id) AS answered_count,
+          (SELECT COUNT(*) FROM partition_progress pr
+             WHERE pr.user_id = u.id AND pr.status = 'done') AS done_count
+        FROM users u
+        ORDER BY u.username COLLATE NOCASE
+        """
+    ).fetchall()
+    return [row_dict(row) for row in rows]  # type: ignore[misc]

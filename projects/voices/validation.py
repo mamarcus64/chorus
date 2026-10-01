@@ -59,6 +59,8 @@ class FaceHit:
     au43: float | None = None
     gaze_yaw: float | None = None
     gaze_pitch: float | None = None
+    head_pitch: float | None = None
+    head_roll: float | None = None
     head_yaw: float | None = None
 
 
@@ -95,9 +97,28 @@ class Question:
     landmarks: bool
 
 
-_YES = (
-    ("yes", "Yes", "1"),
-    ("no", "No", "2"),
+_SURVIVOR = (
+    ("present", "Survivor in Present Day", "1"),
+    ("other", "Picture/Other Person", "2"),
+    ("not_person", "Not a Person", "3"),
+    ("unsure", "Unsure", "4"),
+)
+
+_SMILE = (
+    ("smiling", "Smiling", "1"),
+    ("not_smiling", "Not Smiling", "2"),
+    ("unsure", "Unsure", "3"),
+)
+
+_OPEN = (
+    ("open", "Open", "1"),
+    ("closed", "Closed", "2"),
+    ("unsure", "Unsure", "3"),
+)
+
+_ALIGNED = (
+    ("aligned", "Aligned", "1"),
+    ("not_aligned", "Not aligned", "2"),
     ("unsure", "Unsure", "3"),
 )
 
@@ -112,11 +133,12 @@ A box marks one detected region in the main frame.
 
 Six smaller frames show other moments from the same interview. Use them to see who is being interviewed. Judge only the boxed region.
 
-Yes: the box is on the survivor's face as they look during this interview, in the room, on this day.
-No: the box is on someone else, on a photograph or a screen, or not on a face. A picture of the survivor, including one from years earlier, does not count.
+Survivor in Present Day: the box is on the survivor's face as they look during this interview, in the room, on this day.
+Picture/Other Person: the box is on someone else, or on a photograph or a screen. A picture of the survivor, including one from years earlier, counts here.
+Not a Person: the box is not on a face.
 Unsure: you cannot tell.
 
-Press 1 for Yes, 2 for No, 3 for Unsure.
+Press 1 for Survivor in Present Day, 2 for Picture/Other Person, 3 for Not a Person, 4 for Unsure.
 """
 )
 
@@ -137,11 +159,11 @@ SMILE_INSTRUCTIONS = _keys(
     """\
 Decide whether the person in the box is smiling.
 
-Yes: the mouth is clearly smiling.
-No: the person is not smiling.
+Smiling: the mouth is clearly smiling.
+Not Smiling: the person is not smiling.
 Unsure: you cannot tell.
 
-Press 1 for Yes, 2 for No, 3 for Unsure.
+Press 1 for Smiling, 2 for Not Smiling, 3 for Unsure.
 """
 )
 
@@ -149,68 +171,52 @@ MOUTH_INSTRUCTIONS = _keys(
     """\
 Decide whether the mouth in the box is open.
 
-Yes: the lips are parted.
-No: the mouth is closed.
+Open: the lips are parted.
+Closed: the lips meet.
 Unsure: you cannot tell.
 
-Press 1 for Yes, 2 for No, 3 for Unsure.
+Press 1 for Open, 2 for Closed, 3 for Unsure.
 """
 )
 
 EYES_INSTRUCTIONS = _keys(
     """\
-Decide whether the eyes in the box are closed.
+Decide whether the eyes in the box are open or closed.
 
-Yes: both eyes are closed, including a blink.
-No: at least one eye is open.
+Open: at least one eye is open.
+Closed: both eyes are shut, including a blink.
 Unsure: you cannot tell.
 
-Press 1 for Yes, 2 for No, 3 for Unsure.
+Press 1 for Open, 2 for Closed, 3 for Unsure.
 """
 )
 
 GAZE_INSTRUCTIONS = _keys(
     """\
-Decide where the eyes in the box are pointed. Left and right mean the left and right sides of the image.
+Two copies of the same frame are shown. The photograph has no drawing. The estimate draws the predicted direction of the eyes.
 
-Toward the camera: the person is looking at the camera.
-Image left: the eyes are clearly toward the left side of the image.
-Image right: the eyes are clearly toward the right side of the image.
-Down: the eyes are clearly lowered.
-Eyes not visible: the eyes are closed, blocked, or too unclear to judge.
-Unsure: the eyes are visible, but the direction is unclear.
+An arrow starts at each eye. A circle at the eye means the estimate points toward the camera.
 
-Press 1 for Toward the camera, 2 for Image left, 3 for Image right, 4 for Down, 5 for Eyes not visible, 6 for Unsure.
+Aligned: the drawing matches where the eyes are looking.
+Not aligned: the drawing points somewhere else, or a circle is drawn when the eyes are clearly averted.
+Unsure: the eyes are hidden, or you cannot tell.
+
+Press 1 for Aligned, 2 for Not aligned, 3 for Unsure.
 """
 )
 
 HEAD_INSTRUCTIONS = _keys(
     """\
-Decide which way the head in the box is turned. Left and right mean the left and right sides of the image, not the person's own left and right.
+Two copies of the same frame are shown. The photograph has no drawing. The estimate draws three axes on the face.
 
-Toward the camera: the face is directed at the camera.
-Image left: the head is clearly turned toward the left side of the image.
-Image right: the head is clearly turned toward the right side of the image.
+Red is the left-right axis of the head. Green is the up-down axis. Blue is the direction the face is estimated to point. When that direction is toward the camera, blue shrinks to a dot at the center.
+
+Aligned: the axes sit with the head. Blue points the way the face is turned, and red and green follow the tilt of the head.
+Not aligned: an axis is clearly wrong.
 Unsure: you cannot tell.
 
-Press 1 for Toward the camera, 2 for Image left, 3 for Image right, 4 for Unsure.
+Press 1 for Aligned, 2 for Not aligned, 3 for Unsure.
 """
-)
-
-_GAZE_CHOICES = (
-    ("camera", "Toward the camera", "1"),
-    ("image_left", "Image left", "2"),
-    ("image_right", "Image right", "3"),
-    ("down", "Down", "4"),
-    ("eyes_hidden", "Eyes not visible", "5"),
-    ("unsure", "Unsure", "6"),
-)
-
-_HEAD_CHOICES = (
-    ("camera", "Toward the camera", "1"),
-    ("image_left", "Image left", "2"),
-    ("image_right", "Image right", "3"),
-    ("unsure", "Unsure", "4"),
 )
 
 _LANDMARK_CHOICES = (
@@ -249,8 +255,8 @@ def questions(preset: str) -> list[Question]:
     return [
         Question(
             "Survivor, present day",
-            "Is this box over the face of the survivor in the present day? Pictures and other people do not count.",
-            _YES,
+            "What is inside the box?",
+            _SURVIVOR,
             ("bbox",),
             SURVIVOR_INSTRUCTIONS,
             counts["survivor"],
@@ -270,7 +276,7 @@ def questions(preset: str) -> list[Question]:
         Question(
             "Smile",
             "Is this person smiling?",
-            _YES,
+            _SMILE,
             ("bbox",),
             SMILE_INSTRUCTIONS,
             counts["smile"],
@@ -279,8 +285,8 @@ def questions(preset: str) -> list[Question]:
         ),
         Question(
             "Mouth open",
-            "Is the mouth open?",
-            _YES,
+            "Is the mouth open or closed?",
+            _OPEN,
             ("bbox",),
             MOUTH_INSTRUCTIONS,
             counts["mouth"],
@@ -289,8 +295,8 @@ def questions(preset: str) -> list[Question]:
         ),
         Question(
             "Eyes closed",
-            "Are the eyes closed?",
-            _YES,
+            "Are the eyes open or closed?",
+            _OPEN,
             ("bbox",),
             EYES_INSTRUCTIONS,
             counts["eyes"],
@@ -299,9 +305,9 @@ def questions(preset: str) -> list[Question]:
         ),
         Question(
             "Gaze direction",
-            "Where are the eyes pointed?",
-            _GAZE_CHOICES,
-            ("bbox",),
+            "Does the drawing match where the eyes are looking?",
+            _ALIGNED,
+            ("gaze",),
             GAZE_INSTRUCTIONS,
             counts["gaze"],
             False,
@@ -309,9 +315,9 @@ def questions(preset: str) -> list[Question]:
         ),
         Question(
             "Head direction",
-            "Which way is the head turned?",
-            _HEAD_CHOICES,
-            ("bbox",),
+            "Does the drawing match the way the head is turned?",
+            _ALIGNED,
+            ("pose",),
             HEAD_INSTRUCTIONS,
             counts["head"],
             False,
@@ -510,6 +516,8 @@ def _hit_from(source: str, video_id: str, testimony: str, frame: int, time_s: fl
         au43=_optional(face, "au43"),
         gaze_yaw=_optional(face, "gaze_yaw"),
         gaze_pitch=_optional(face, "gaze_pitch"),
+        head_pitch=_optional(face, "head_pitch"),
+        head_roll=_optional(face, "head_roll"),
         head_yaw=_optional(face, "head_yaw"),
     )
 
@@ -773,7 +781,12 @@ def _round_or_drop(value: float | None, places: int = 6) -> float | None:
     return round(float(value), places)
 
 
-def make_features(item: Drawn, image_size: tuple[int, int], landmarks: list[list[float]] | None = None) -> dict:
+def make_features(
+    item: Drawn,
+    image_size: tuple[int, int],
+    landmarks: list[list[float]] | None = None,
+    eyes: list[list[float]] | None = None,
+) -> dict:
     features: dict = {
         "bbox": [round(float(value), 2) for value in item.hit.bbox],
         "image_size": [int(image_size[0]), int(image_size[1])],
@@ -786,6 +799,8 @@ def make_features(item: Drawn, image_size: tuple[int, int], landmarks: list[list
         ("au43", item.hit.au43),
         ("gaze_yaw", item.hit.gaze_yaw),
         ("gaze_pitch", item.hit.gaze_pitch),
+        ("head_pitch", item.hit.head_pitch),
+        ("head_roll", item.hit.head_roll),
         ("head_yaw", item.hit.head_yaw),
     ):
         rounded = _round_or_drop(value)
@@ -793,4 +808,19 @@ def make_features(item: Drawn, image_size: tuple[int, int], landmarks: list[list
             features[key] = rounded
     if landmarks is not None:
         features["landmarks"] = [[round(float(x), 2), round(float(y), 2)] for x, y in landmarks]
+    if eyes is not None:
+        features["eyes"] = [[round(float(x), 2), round(float(y), 2)] for x, y in eyes]
     return features
+
+
+def eye_centers(points: list[list[float]]) -> list[list[float]]:
+    """Mean of the 68-point right-eye and left-eye landmarks, in that order."""
+
+    def center(start: int, stop: int) -> list[float]:
+        group = points[start:stop]
+        return [
+            sum(point[0] for point in group) / len(group),
+            sum(point[1] for point in group) / len(group),
+        ]
+
+    return [center(36, 42), center(42, 48)]

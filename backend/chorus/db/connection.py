@@ -16,7 +16,10 @@ def utcnow() -> str:
 def connect(project: str) -> sqlite3.Connection:
     path = settings().db_path(project)
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+    # FastAPI may open this connection in one worker thread and run the
+    # request in another. The default check rejects that handoff, so a burst
+    # of image requests fails partway through.
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")

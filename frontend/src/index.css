@@ -7,7 +7,7 @@
 body { margin: 0; }
 
 main { max-width: 960px; margin: 0 auto; padding: 24px; }
-main.annotate { max-width: 1080px; }
+main.annotate { max-width: 1180px; }
 
 a { color: #93c5fd; }
 
@@ -86,13 +86,42 @@ th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #334155; }
   gap: 8px;
 }
 
-.reference-row img {
+.reference-row img,
+.reference-row .still-retry {
   width: 100%;
   height: 112px;
   object-fit: contain;
   background: #020617;
   border: 1px solid #334155;
   border-radius: 8px;
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+  align-items: start;
+}
+
+.compare figure {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.compare figcaption {
+  align-self: flex-start;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.still-retry {
+  min-height: 44px;
+  color: #fca5a5;
 }
 
 .judge-card {
@@ -133,4 +162,25 @@ th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #334155; }
 
 @media (max-width: 800px) {
   .reference-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .compare { grid-template-columns: 1fr; }
+}
+
+main.wide { max-width: 1100px; }
+
+.filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin: 12px 0;
+}
+
+.filters label { margin: 0; min-width: 12rem; }
+
+.check-list { list-style: none; padding: 0; margin: 8px 0; }
+.check-list label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
 }

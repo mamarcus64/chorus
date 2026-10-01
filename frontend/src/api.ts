@@ -89,10 +89,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ username, password, registration_key: registrationKey }),
     }),
-  login: (project: string, username: string, password: string) =>
+  login: (project: string, username: string, password: string, adminKey = "") =>
     request<User>(`/api/p/${project}/auth/login`, {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, admin_key: adminKey }),
     }),
   logout: (project: string) => request<{ ok: boolean }>(`/api/p/${project}/auth/logout`, { method: "POST" }),
   home: (project: string) =>
@@ -108,7 +108,18 @@ export const api = {
       `/api/p/${project}/items/${itemId}/annotation`,
       { method: "PUT", body: JSON.stringify({ value, elapsed_ms: elapsedMs }) },
     ),
-  admin: (project: string) => request<AdminPayload>(`/api/p/${project}/admin/partitions`),
+  adminSummary: (project: string) =>
+    request<{ partitions: SummaryPartition[] }>(`/api/p/${project}/admin/summary`),
+  adminPartition: (project: string, id: string) =>
+    request<PartitionAdmin>(`/api/p/${project}/admin/partitions/${id}`),
+  adminUsers: (project: string) => request<{ users: PersonRow[] }>(`/api/p/${project}/admin/users`),
+  adminUser: (project: string, id: string) =>
+    request<PersonAdmin>(`/api/p/${project}/admin/users/${id}`),
+  setUserAssignments: (project: string, id: string, partitionIds: string[]) =>
+    request<{ user_id: string; partition_ids: string[] }>(`/api/p/${project}/admin/users/${id}/assignments`, {
+      method: "PUT",
+      body: JSON.stringify({ partition_ids: partitionIds }),
+    }),
   setAssignment: (project: string, id: string, mode: string, userIds: string[]) =>
     request(`/api/p/${project}/admin/partitions/${id}/assignment`, {
       method: "PUT",
@@ -121,24 +132,65 @@ export const api = {
     }),
 };
 
-export interface AdminUser {
-  id: string;
-  username: string;
-  is_admin: boolean;
-}
-
-export interface AdminPartition {
+export interface SummaryPartition {
   id: string;
   name: string;
   task_name: string;
   assignment: "everyone" | "selected";
   archived_at: string | null;
   item_count: number;
-  assignees: string[];
-  users: { id: string; username: string; answered_count: number; status: string | null; done_via: string | null }[];
+  assignee_count: number;
+  annotator_count: number;
+  assigned_started: number;
+  done_count: number;
 }
 
-export interface AdminPayload {
-  partitions: AdminPartition[];
-  users: AdminUser[];
+export interface PartitionPerson {
+  id: string;
+  username: string;
+  is_admin: boolean;
+  answered_count: number;
+  status: string | null;
+  done_via: string | null;
+  is_assignee: boolean;
+}
+
+export interface PartitionAdmin {
+  id: string;
+  name: string;
+  description: string | null;
+  task_name: string;
+  assignment: "everyone" | "selected";
+  archived_at: string | null;
+  item_count: number;
+  assignees: string[];
+  users: PartitionPerson[];
+  answers: { choice: string | null; label: string; count: number }[];
+}
+
+export interface PersonRow {
+  id: string;
+  username: string;
+  is_admin: boolean;
+  selected_count: number;
+  answered_count: number;
+  done_count: number;
+}
+
+export interface PersonPartition {
+  id: string;
+  name: string;
+  task_name: string;
+  assignment: "everyone" | "selected";
+  archived_at: string | null;
+  item_count: number;
+  is_assignee: boolean;
+  answered_count: number;
+  status: string | null;
+  done_via: string | null;
+}
+
+export interface PersonAdmin {
+  user: { id: string; username: string; is_admin: boolean };
+  partitions: PersonPartition[];
 }

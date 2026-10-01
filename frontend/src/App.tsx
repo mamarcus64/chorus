@@ -15,7 +15,7 @@ function ProjectRoutes() {
         <Route path="register" element={<Register />} />
         <Route index element={<Home />} />
         <Route path="partition/:partitionId" element={<Annotate />} />
-        <Route path="admin" element={<Admin />} />
+        <Route path="admin/*" element={<Admin />} />
       </Routes>
     </AuthProvider>
   );

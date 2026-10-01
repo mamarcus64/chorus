@@ -9,13 +9,13 @@ _VIDEO_KEYS = ("source", "video_id", "file", "start_s", "end_s")
 _SPEECH_KEYS = ("source", "video_id", "start_s", "end_s")
 
 
-_OVERLAYS = {"bbox", "landmarks"}
+_OVERLAYS = {"bbox", "landmarks", "gaze", "pose"}
 _REFERENCE_COUNT = 6
 
 
 class FrameChoice:
     code_key = "frame_choice"
-    code_version = 2
+    code_version = 3
     item_kinds = {"frame"}
 
     def validate_config(self, config: dict) -> dict:
@@ -106,6 +106,21 @@ class FrameChoice:
                     or not all(isinstance(number, (int, float)) for number in point)
                 ):
                     raise TaskError("each landmark must be [x, y]")
+        eyes = features.get("eyes")
+        if eyes is not None:
+            if not isinstance(eyes, list) or len(eyes) != 2:
+                raise TaskError("eyes must be two points")
+            for point in eyes:
+                if (
+                    not isinstance(point, list)
+                    or len(point) != 2
+                    or not all(isinstance(number, (int, float)) for number in point)
+                ):
+                    raise TaskError("each eye must be [x, y]")
+        for key in ("gaze_pitch", "gaze_yaw", "head_pitch", "head_roll", "head_yaw"):
+            value = features.get(key)
+            if value is not None and not isinstance(value, (int, float)):
+                raise TaskError(f"{key} must be a number")
 
     def validate_value(self, config: dict, value: dict) -> dict:
         clean = self.validate_config(config)

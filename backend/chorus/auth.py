@@ -27,11 +27,18 @@ def verify_password(password_hash: str, password: str) -> bool:
         return False
 
 
-def registration_key_ok(offered: str) -> bool:
-    expected = settings().registration_key
+def _key_ok(offered: str, expected: str) -> bool:
     if not expected:
         return False
     return hmac.compare_digest(offered, expected)
+
+
+def registration_key_ok(offered: str) -> bool:
+    return _key_ok(offered, settings().registration_key)
+
+
+def admin_key_ok(offered: str) -> bool:
+    return _key_ok(offered, settings().admin_key)
 
 
 def _serializer() -> URLSafeTimedSerializer:
@@ -51,6 +58,7 @@ __all__ = [
     "COOKIE",
     "MAX_AGE",
     "SignatureExpired",
+    "admin_key_ok",
     "dump_session",
     "hash_password",
     "read_session",
