@@ -68,4 +68,4 @@ if command -v lsof >/dev/null 2>&1; then
 fi
 
 cd "$REPO/backend"
-exec uvicorn chorus.main:app --host 0.0.0.0 --port "$PORT"
+exec uvicorn chorus.main:app --host 127.0.0.1 --port "$PORT"
