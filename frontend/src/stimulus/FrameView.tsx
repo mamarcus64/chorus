@@ -5,9 +5,10 @@ interface Props {
   src: string;
   features: FrameFeatures;
   overlays: string[];
+  maxHeight?: string;
 }
 
-export default function FrameView({ src, features, overlays }: Props) {
+export default function FrameView({ src, features, overlays, maxHeight = "68vh" }: Props) {
   const imageRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -20,12 +21,14 @@ export default function FrameView({ src, features, overlays }: Props) {
       const width = image.clientWidth;
       const height = image.clientHeight;
       if (!width || !height) return;
-      canvas.width = width;
-      canvas.height = height;
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(width * ratio);
+      canvas.height = Math.round(height * ratio);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       drawOverlays(ctx, width, height, features, overlays);
     };
 
@@ -36,7 +39,7 @@ export default function FrameView({ src, features, overlays }: Props) {
       image.removeEventListener("load", paint);
       window.removeEventListener("resize", paint);
     };
-  }, [src, features, overlays]);
+  }, [src, features, overlays, maxHeight]);
 
   return (
     <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
@@ -44,7 +47,7 @@ export default function FrameView({ src, features, overlays }: Props) {
         ref={imageRef}
         src={src}
         alt="Frame to annotate"
-        style={{ display: "block", maxWidth: "100%", maxHeight: "70vh", background: "#000" }}
+        style={{ display: "block", maxWidth: "100%", maxHeight, background: "#000" }}
       />
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
     </div>

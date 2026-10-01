@@ -32,3 +32,28 @@ def test_frame_choice_rejects_bad_answers():
     assert task.required_files(
         {"still": "still:x", "source": "usc", "video_id": "10.1", "frame": 3, "time_s": 0.1}
     ) == ["still:x"]
+    refs = [f"still:ref:{index}" for index in range(6)]
+    task.validate_item(
+        "frame",
+        {
+            "source": "usc",
+            "video_id": "10.1",
+            "frame": 3,
+            "time_s": 0.1,
+            "still": "still:x",
+            "face": 0,
+            "references": refs,
+        },
+        {"bbox": [0, 0, 10, 10], "image_size": [320, 240], "landmarks": [[1, 2]] * 68},
+    )
+    assert task.required_files(
+        {"still": "still:x", "references": refs, "source": "usc", "video_id": "10.1", "frame": 3, "time_s": 0.1}
+    ) == ["still:x", *refs]
+    with pytest.raises(TaskError):
+        task.validate_item(
+            "frame",
+            {"source": "usc", "video_id": "10.1", "frame": 3, "time_s": 0.1, "still": "still:x", "references": refs[:5]},
+            {},
+        )
+    with pytest.raises(TaskError):
+        task.validate_config({**config, "overlays": ["arrow"]})

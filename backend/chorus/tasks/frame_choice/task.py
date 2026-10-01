@@ -9,9 +9,13 @@ _VIDEO_KEYS = ("source", "video_id", "file", "start_s", "end_s")
 _SPEECH_KEYS = ("source", "video_id", "start_s", "end_s")
 
 
+_OVERLAYS = {"bbox", "landmarks"}
+_REFERENCE_COUNT = 6
+
+
 class FrameChoice:
     code_key = "frame_choice"
-    code_version = 1
+    code_version = 2
     item_kinds = {"frame"}
 
     def validate_config(self, config: dict) -> dict:
@@ -38,6 +42,9 @@ class FrameChoice:
         overlays = config.get("overlays", [])
         if not isinstance(overlays, list) or not all(isinstance(name, str) for name in overlays):
             raise TaskError("overlays must be a list of names")
+        unknown = [name for name in overlays if name not in _OVERLAYS]
+        if unknown:
+            raise TaskError("unknown overlay " + ", ".join(unknown))
         instructions = config.get("instructions", "")
         if not isinstance(instructions, str):
             raise TaskError("instructions must be a string")
@@ -58,6 +65,20 @@ class FrameChoice:
             raise TaskError("frame must be an integer")
         if not isinstance(locator["still"], str) or not locator["still"]:
             raise TaskError("still file id is required")
+        face = locator.get("face")
+        if face is not None and not isinstance(face, int):
+            raise TaskError("face must be an integer")
+        references = locator.get("references")
+        if references is not None:
+            if (
+                not isinstance(references, list)
+                or len(references) != _REFERENCE_COUNT
+                or not all(isinstance(item, str) and item for item in references)
+                or len(set(references)) != _REFERENCE_COUNT
+            ):
+                raise TaskError("references must be six distinct file ids")
+            if locator["still"] in references:
+                raise TaskError("references must not include the judged still")
         bbox = features.get("bbox")
         if bbox is not None:
             if (
@@ -74,6 +95,17 @@ class FrameChoice:
                 or not all(isinstance(n, int) and n > 0 for n in image_size)
             ):
                 raise TaskError("image_size must be [width, height]")
+        landmarks = features.get("landmarks")
+        if landmarks is not None:
+            if not isinstance(landmarks, list) or len(landmarks) != 68:
+                raise TaskError("landmarks must be 68 points")
+            for point in landmarks:
+                if (
+                    not isinstance(point, list)
+                    or len(point) != 2
+                    or not all(isinstance(number, (int, float)) for number in point)
+                ):
+                    raise TaskError("each landmark must be [x, y]")
 
     def validate_value(self, config: dict, value: dict) -> dict:
         clean = self.validate_config(config)
@@ -84,10 +116,16 @@ class FrameChoice:
         return {"choice": choice}
 
     def required_files(self, locator: dict) -> list[str]:
+        files: list[str] = []
         still = locator.get("still")
         if isinstance(still, str) and still:
-            return [still]
-        return []
+            files.append(still)
+        references = locator.get("references")
+        if isinstance(references, list):
+            for item in references:
+                if isinstance(item, str) and item and item not in files:
+                    files.append(item)
+        return files
 
 
 def locator_keys(kind: str) -> tuple[str, ...]:

@@ -104,7 +104,7 @@ export default function Annotate() {
   const fileId = typeof item.locator.file === "string" ? item.locator.file : "";
 
   return (
-    <main>
+    <main className="annotate">
       <header className="bar">
         <Link to={`/p/${project}`}>Home</Link>
         <strong>{detail.task.name}</strong>

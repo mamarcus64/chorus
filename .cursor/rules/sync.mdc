@@ -1,0 +1,28 @@
+---
+description: How to sync Chorus code, stills, and labels with the EC2 instance
+alwaysApply: true
+---
+
+# Chorus sync
+
+Follow `SYNC.md` for the exact commands. Do not invent a different copy path.
+
+Three channels, used separately:
+
+- Code is git. Push from this machine, then `git pull` on the instance. `.env` is not in git.
+- Stills and `manifest.json` go through `data/sync.sh` and a file list from `python -m chorus files`. This does not copy videos or the database.
+- Labels go through `db/sync_db.sh`. That is a three-way row merge against `db/.base/voices.sqlite`. Never `scp` or `rsync` `voices.sqlite` over a database that has new rows.
+
+`db/sync_db.sh` does not stop or start the app. It snapshots each database, merges, and writes the result back into the existing files.
+
+The instance is `voices-aws` via `/data/mjma/chorus/aws-connection/config`. The remote root is `/data/mjma/chorus`. The public port is `1945`, set by `CHORUS_PORT` in each machine's `.env`.
+
+The no-external-network rule still applies. Do not run any command in `SYNC.md` until the current user message gives permission for that command.
+
+```bash
+# ❌ BAD — replaces remote labels with this machine's file
+scp db/voices.sqlite voices-aws:/data/mjma/chorus/db/voices.sqlite
+
+# ✅ GOOD — current message allows a label sync
+/data/mjma/chorus/db/sync_db.sh voices-aws
+```

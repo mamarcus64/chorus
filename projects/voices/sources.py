@@ -19,6 +19,7 @@ class Video:
     width: int
     height: int
     fps: float
+    n_frames: int = 0
 
 
 def list_videos(sources: list[str]) -> dict[str, list[Video]]:
@@ -47,6 +48,7 @@ def list_videos(sources: list[str]) -> dict[str, list[Video]]:
                         width=int(meta["width"]),
                         height=int(meta["height"]),
                         fps=float(meta["fps"]),
+                        n_frames=int(meta.get("decoded_frames") or meta.get("reported_frames") or 0),
                     )
                 )
         found[source] = videos

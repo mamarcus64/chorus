@@ -1,0 +1,29 @@
+---
+description: How to add or change Chorus tasks and partitions
+alwaysApply: true
+---
+
+# Tasks and partitions
+
+A task type is code, shared across projects. A task row names that code (`code_key`) and stores this project's config. A partition is one batch of items. Labels hang off the item id, which is derived from the partition id and the locator. Changing a locator creates a new item and leaves the old label behind.
+
+More work on an existing task is a new partition name. Rebuild of a partition is allowed only when the item ids stay the same. A different item set must be a new `--partition-name`. The head-present builder already exits in that case.
+
+```bash
+# ✅ GOOD — a new batch; old labels stay on pilot-100
+python projects/voices/build_head_present.py --partition-name pilot-200 --n 100 --seed 2
+
+# ❌ BAD — same name, different frames; this deletes the link to existing labels
+python projects/voices/build_head_present.py --partition-name pilot-100 --n 100 --seed 9
+```
+
+Do not hard-delete a task, partition, or item. Archive it. New partitions start assigned to everyone. Narrowing the set is an assignment change, not a new partition.
+
+A new task type needs all of these:
+
+- A module under `backend/chorus/tasks/` with `code_key`, `code_version`, and the `TaskType` methods.
+- A line in `backend/chorus/tasks/registry.py`.
+- A viewer, a line in `frontend/src/tasks/registry.ts`, and an explicit branch in `Annotate.tsx`. Do not render the registry component dynamically.
+- A project builder that writes the task, the partition, the items, and the manifest. Render stills on this machine. Do not bake overlays into the image.
+
+SQL stays in the query modules. A new column is a new migration file. After a new partition, sync stills and the database the way `SYNC.md` says, and only after the current message allows that connection.
