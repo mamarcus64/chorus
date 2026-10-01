@@ -40,5 +40,5 @@ def client(migrated):
 
     from chorus.main import create_app
 
-    with TestClient(create_app()) as test_client:
+    with TestClient(create_app(), base_url="https://testserver") as test_client:
         yield test_client

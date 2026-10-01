@@ -42,6 +42,7 @@ def _set_session(response: Response, project: str, user_id: str) -> None:
         COOKIE,
         dump_session(project, user_id),
         httponly=True,
+        secure=True,
         samesite="lax",
         max_age=MAX_AGE,
         path="/",
@@ -98,7 +99,7 @@ def login(
 
 @router.post("/auth/logout")
 def logout(response: Response):
-    response.delete_cookie(COOKIE, path="/")
+    response.delete_cookie(COOKIE, path="/", secure=True, httponly=True, samesite="lax")
     return {"ok": True}
 
 
