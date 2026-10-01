@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Reconcile this machine's project database with the copy on another host.
-# Nothing here opens a database connection across the network. The files are
-# copied, then merged on this machine, then the merged file is copied back.
-#
-# Stop writers on both sides first. The remote app is stopped with pkill and
-# started again with scripts/start.sh. Set CHORUS_REMOTE_DIR if the folder is
-# not /data/mjma/chorus.
+# Nothing here opens a database connection across the network. Each side is
+# snapshotted with SQLite's backup API, the snapshots are merged on this
+# machine, and the merged file is written back into the existing database
+# files. The app is not stopped or started. Set CHORUS_REMOTE_DIR if the
+# folder is not /data/mjma/chorus.
 #
 #   db/sync_db.sh user@host [project]
 set -euo pipefail
@@ -30,6 +29,8 @@ fi
 
 LOCAL="$ROOT/db/${PROJECT}.sqlite"
 BASE="$ROOT/db/.base/${PROJECT}.sqlite"
+REMOTE="$REMOTE_DIR/db/${PROJECT}.sqlite"
+REMOTE_BASE="$REMOTE_DIR/db/.base/${PROJECT}.sqlite"
 MERGE="$REPO/scripts/merge.py"
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
@@ -44,25 +45,76 @@ if [[ ! -f "$BASE" ]]; then
   exit 1
 fi
 
-echo "Stopping remote app"
-ssh "$HOST" "pkill -f 'uvicorn chorus.main:app' || true"
+# Copy src into dest through SQLite, including pages still in the WAL. A plain
+# file copy of a database an app has open can miss those pages or replace the
+# file the app is still writing.
+snapshot() {
+  python3 - "$1" "$2" << 'PY'
+import sqlite3
+import sys
 
-echo "Pulling remote database"
-scp "$HOST:$REMOTE_DIR/db/${PROJECT}.sqlite" "$WORKDIR/remote.sqlite"
+source = sqlite3.connect(sys.argv[1])
+target = sqlite3.connect(sys.argv[2])
+source.execute("PRAGMA busy_timeout=5000")
+target.execute("PRAGMA busy_timeout=5000")
+try:
+    source.backup(target)
+    target.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+finally:
+    target.close()
+    source.close()
+PY
+}
+
+echo "Snapshotting local database"
+snapshot "$LOCAL" "$WORKDIR/local.sqlite"
+
+echo "Snapshotting remote database"
+REMOTE_SNAP="$(ssh "$HOST" mktemp)"
+ssh "$HOST" python3 - "$REMOTE" "$REMOTE_SNAP" << 'PY'
+import sqlite3
+import sys
+
+source = sqlite3.connect(sys.argv[1])
+target = sqlite3.connect(sys.argv[2])
+source.execute("PRAGMA busy_timeout=5000")
+target.execute("PRAGMA busy_timeout=5000")
+try:
+    source.backup(target)
+    target.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+finally:
+    target.close()
+    source.close()
+PY
+scp "$HOST:$REMOTE_SNAP" "$WORKDIR/remote.sqlite"
+ssh "$HOST" rm -f "$REMOTE_SNAP"
 
 echo "Merging"
-python3 "$MERGE" "$BASE" "$LOCAL" "$WORKDIR/remote.sqlite" -o "$WORKDIR/merged.sqlite"
+python3 "$MERGE" "$BASE" "$WORKDIR/local.sqlite" "$WORKDIR/remote.sqlite" -o "$WORKDIR/merged.sqlite"
 
 echo "Installing merged database locally and as the new base"
 mkdir -p "$ROOT/db/.base" "$ROOT/db/backups"
-cp "$LOCAL" "$ROOT/db/backups/${PROJECT}-before-merge-$(date -u +%Y%m%dT%H%M%SZ).sqlite"
-cp "$WORKDIR/merged.sqlite" "$LOCAL"
+cp "$WORKDIR/local.sqlite" "$ROOT/db/backups/${PROJECT}-before-merge-$(date -u +%Y%m%dT%H%M%SZ).sqlite"
+snapshot "$WORKDIR/merged.sqlite" "$LOCAL"
 cp "$WORKDIR/merged.sqlite" "$BASE"
 
-echo "Pushing merged database"
-scp "$WORKDIR/merged.sqlite" "$HOST:$REMOTE_DIR/db/${PROJECT}.sqlite"
-ssh "$HOST" "mkdir -p '$REMOTE_DIR/db/.base' && cp '$REMOTE_DIR/db/${PROJECT}.sqlite' '$REMOTE_DIR/db/.base/${PROJECT}.sqlite'"
+echo "Writing merged database on the remote"
+REMOTE_MERGED="$(ssh "$HOST" mktemp)"
+scp "$WORKDIR/merged.sqlite" "$HOST:$REMOTE_MERGED"
+ssh "$HOST" python3 - "$REMOTE_MERGED" "$REMOTE" << 'PY'
+import sqlite3
+import sys
 
-echo "Starting remote app"
-ssh "$HOST" "cd '$REMOTE_DIR/chorus' && bash scripts/start.sh"
+source = sqlite3.connect(sys.argv[1])
+target = sqlite3.connect(sys.argv[2])
+source.execute("PRAGMA busy_timeout=5000")
+target.execute("PRAGMA busy_timeout=5000")
+try:
+    source.backup(target)
+    target.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+finally:
+    target.close()
+    source.close()
+PY
+ssh "$HOST" "mkdir -p '$REMOTE_DIR/db/.base' && cp '$REMOTE_MERGED' '$REMOTE_BASE' && rm -f '$REMOTE_MERGED'"
 echo "Merged $PROJECT"
