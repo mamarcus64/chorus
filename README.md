@@ -67,11 +67,10 @@ Seven questions check the present-day survivor, the landmark points, smile, an o
 python projects/voices/build_validation.py --preset pilot --seed 1
 ```
 
-`--dry-run` prints the sample and does not write stills or database rows. The stills sync the same way as the head-present task.
+`--dry-run` prints the sample and does not write stills or database rows. Stills sync from the local database:
 
 ```bash
-python -m chorus files --project voices --partition all > /tmp/chorus-files.txt
-../data/sync.sh user@host:/data/mjma/chorus/data/voices /tmp/chorus-files.txt
+../data/sync.sh user@host
 ```
 
 ## Database merge

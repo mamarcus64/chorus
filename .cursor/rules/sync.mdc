@@ -10,7 +10,7 @@ Follow `SYNC.md` for the exact commands. Do not invent a different copy path.
 Three channels, used separately:
 
 - Code is git. Push from this machine, then `git pull` on the instance. `.env` is not in git.
-- Stills and `manifest.json` go through `data/sync.sh` and a file list from `python -m chorus files`. This does not copy videos or the database.
+- Stills and `manifest.json` go through `data/sync.sh user@host`. The script builds the file list from the local database. This does not copy videos or the database.
 - Labels go through `db/sync_db.sh`. That is a three-way row merge against `db/.base/voices.sqlite`. Never `scp` or `rsync` `voices.sqlite` over a database that has new rows.
 
 `db/sync_db.sh` does not stop or start the app. It snapshots each database, merges, and writes the result back into the existing files.

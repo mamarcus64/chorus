@@ -24,9 +24,10 @@ If dependencies or the frontend changed, on the instance run `bash scripts/setup
 ## Stills
 
 ```bash
-cd /data/mjma/chorus/chorus && set -a && . ./.env && set +a && .venv/bin/python -m chorus files --project voices --partition all > /tmp/chorus-files.txt
-/data/mjma/chorus/data/sync.sh voices-aws:/data/mjma/chorus/data/voices /tmp/chorus-files.txt
+/data/mjma/chorus/data/sync.sh voices-aws
 ```
+
+This reads the local database, sends every still those partitions use, and sends `manifest.json`. It does not send videos or the database.
 
 ## Labels
 
