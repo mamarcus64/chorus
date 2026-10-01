@@ -56,7 +56,7 @@ Stills are rendered on this machine with OpenCV (the decoder Py-Feat used) and s
 
 ## Validation pilot
 
-Seven questions check the present-day survivor, the landmark points, smile, an open mouth, closed eyes, gaze direction, and head direction. The survivor question also shows six other frames from the same interview. The pilot is 20 items per question. `--preset full` is the larger confirmation set and is not part of the pilot.
+Seven questions check the present-day survivor, the landmark points, smile, an open mouth, closed eyes, gaze direction, and head direction. The survivor question also shows six other frames from the same interview. `--preset full` writes the confirmation set: 200 items per question, mostly difficult frames, with a smaller high-confidence group in each question.
 
 ```bash
 python projects/voices/build_validation.py --preset pilot --seed 1

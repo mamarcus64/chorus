@@ -19,7 +19,7 @@ cd /data/mjma/chorus/chorus && git push
 ssh voices-aws 'cd /data/mjma/chorus/chorus && git pull'
 ```
 
-If dependencies or the frontend changed, on the instance run `bash scripts/setup.sh`, then restart in tmux with `bash scripts/start.sh`.
+Restart in tmux with `bash scripts/start.sh`. That rebuilds the frontend when its source is newer than the served pages. Run `bash scripts/setup.sh` when Python dependencies or migrations changed.
 
 ## Stills
 

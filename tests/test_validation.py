@@ -78,6 +78,21 @@ def test_strata_separate_the_survivor_cases_and_the_behavior_tails():
     assert "gaze_down" in _names([_face(gaze_yaw=0.0, gaze_pitch=0.4)])
     assert "gaze_down" not in _names([_face(gaze_yaw=-0.5, gaze_pitch=0.4)])
     assert "head_yaw_pos" in _names([_face(head_yaw=0.3)])
+    assert "landmarks_turn" in _names([_face(head_yaw=0.3)])
+    assert "landmarks_frontal" in usual
+    assert "landmarks_frontal" not in _names([_face(head_yaw=0.3)])
+    assert "smile_mid" in _names([_face(au12=0.5)])
+    assert "smile_high" not in _names([_face(au12=0.5)])
+    assert "mouth_mid" in _names([_face(au25=0.55)])
+    small_clear = _names([_face(score=0.95, bbox=(10, 10, 20, 24))])
+    assert "landmarks_small" in small_clear
+    assert "landmarks" not in small_clear
+    several_clear = strata_for_faces(
+        [_face(score=0.99, bbox=(10, 10, 80, 80)), _face(score=0.95, bbox=(180, 20, 40, 40))],
+        320,
+        240,
+    )
+    assert sum(1 for name, _face in several_clear if name == "landmarks_several") == 2
 
 
 def test_fifth_face_is_left_out_of_the_several_stratum():
@@ -119,14 +134,21 @@ def test_pilot_and_confirmation_counts():
         assert sum(count for _name, count in question.strata) == 20
     totals = {question.name: sum(count for _name, count in question.strata) for question in questions("full")}
     assert totals == {
-        "Survivor, present day": 800,
+        "Survivor, present day": 200,
         "Landmarks on the face": 200,
-        "Smile": 120,
-        "Mouth open": 80,
-        "Eyes closed": 80,
-        "Gaze direction": 150,
-        "Head direction": 100,
+        "Smile": 200,
+        "Mouth open": 200,
+        "Eyes closed": 200,
+        "Gaze direction": 200,
+        "Head direction": 200,
     }
+    full = {question.name: question.strata for question in questions("full")}
+    assert dict(full["Survivor, present day"])["usual"] == 30
+    assert dict(full["Landmarks on the face"])["landmarks_frontal"] == 50
+    assert dict(full["Smile"])["smile_high"] == 40
+    assert dict(full["Eyes closed"])["eyes_low"] == 40
+    assert dict(full["Gaze direction"])["gaze_center"] == 30
+    assert dict(full["Head direction"])["head_center"] == 30
 
 
 def test_collection_need_pads_overlapping_survivor_strata():

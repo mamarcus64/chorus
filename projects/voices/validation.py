@@ -1,9 +1,10 @@
 """Sampling rules for the facial-behavior validation questions.
 
 A question is one prompt. The pilot preset draws 20 items for each question.
-The confirmation preset uses the same rules at the larger counts. Within a
-question, a box is drawn for the first matching stratum only. Behavior,
-landmark, gaze, and head questions use frames with one large, high-scoring face.
+The confirmation preset draws 200. Most of those are the difficult frames.
+A smaller group in each question is a high-confidence case, kept so the
+common frames are checked as well. Within a question, a box is drawn for the
+first matching stratum only.
 """
 
 from __future__ import annotations
@@ -25,8 +26,12 @@ MULTI_CAP = 4
 
 AU12_HIGH = 0.8
 AU12_LOW = 0.1
+AU12_MID_LO = 0.35
+AU12_MID_HI = 0.65
 AU25_HIGH = 0.95
 AU25_LOW = 0.2
+AU25_MID_LO = 0.4
+AU25_MID_HI = 0.7
 AU43_HIGH = 0.7
 AU43_LOW = 0.1
 
@@ -237,13 +242,18 @@ _PRESET_COUNTS: dict[str, dict[str, tuple[tuple[str, int], ...]]] = {
         "head": (("head_yaw_neg", 6), ("head_yaw_pos", 6), ("head_center", 8)),
     },
     "full": {
-        "survivor": (("several", 350), ("small", 200), ("low", 100), ("usual", 150)),
-        "landmarks": (("landmarks", 200),),
-        "smile": (("smile_high", 60), ("smile_low", 60)),
-        "mouth": (("mouth_high", 40), ("mouth_low", 40)),
-        "eyes": (("eyes_high", 40), ("eyes_low", 40)),
-        "gaze": (("gaze_yaw_neg", 35), ("gaze_yaw_pos", 35), ("gaze_down", 30), ("gaze_center", 50)),
-        "head": (("head_yaw_neg", 30), ("head_yaw_pos", 30), ("head_center", 40)),
+        "survivor": (("several", 100), ("small", 50), ("low", 20), ("usual", 30)),
+        "landmarks": (
+            ("landmarks_turn", 70),
+            ("landmarks_small", 40),
+            ("landmarks_several", 40),
+            ("landmarks_frontal", 50),
+        ),
+        "smile": (("smile_mid", 120), ("smile_high", 40), ("smile_low", 40)),
+        "mouth": (("mouth_mid", 120), ("mouth_high", 40), ("mouth_low", 40)),
+        "eyes": (("eyes_high", 160), ("eyes_low", 40)),
+        "gaze": (("gaze_yaw_neg", 70), ("gaze_yaw_pos", 70), ("gaze_down", 30), ("gaze_center", 30)),
+        "head": (("head_yaw_neg", 85), ("head_yaw_pos", 85), ("head_center", 30)),
     },
 }
 
@@ -366,7 +376,7 @@ def split_counts(n: int, sources: list[str]) -> list[int]:
 
 
 def per_video_limit(stratum: str) -> int:
-    if stratum == "several":
+    if stratum in {"several", "landmarks_several"}:
         return 4
     return 2
 
@@ -455,6 +465,10 @@ def strata_for_faces(faces: list[dict], width: int, height: int) -> list[tuple[s
             found.append(("small", face))
         if n_faces == 1 and score > USUAL_SCORE and area >= LARGE_AREA:
             found.append(("usual", face))
+        if n_faces == 1 and area < SMALL_AREA and score > BEHAVIOR_SCORE:
+            found.append(("landmarks_small", face))
+        if n_faces >= 2 and score > BEHAVIOR_SCORE and rank < MULTI_CAP:
+            found.append(("landmarks_several", face))
         if not (n_faces == 1 and score > BEHAVIOR_SCORE and area >= LARGE_AREA):
             continue
         found.append(("landmarks", face))
@@ -464,14 +478,22 @@ def strata_for_faces(faces: list[dict], width: int, height: int) -> list[tuple[s
         gaze_yaw = _optional(face, "gaze_yaw")
         gaze_pitch = _optional(face, "gaze_pitch")
         head_yaw = _optional(face, "head_yaw")
+        if head_yaw is not None and abs(head_yaw) > HEAD_TURN:
+            found.append(("landmarks_turn", face))
+        elif head_yaw is not None and abs(head_yaw) < HEAD_CENTER and score > USUAL_SCORE:
+            found.append(("landmarks_frontal", face))
         if au12 is not None and au12 >= AU12_HIGH:
             found.append(("smile_high", face))
         elif au12 is not None and au12 <= AU12_LOW:
             found.append(("smile_low", face))
+        elif au12 is not None and AU12_MID_LO <= au12 <= AU12_MID_HI:
+            found.append(("smile_mid", face))
         if au25 is not None and au25 >= AU25_HIGH:
             found.append(("mouth_high", face))
         elif au25 is not None and au25 <= AU25_LOW:
             found.append(("mouth_low", face))
+        elif au25 is not None and AU25_MID_LO <= au25 <= AU25_MID_HI:
+            found.append(("mouth_mid", face))
         if au43 is not None and au43 >= AU43_HIGH:
             found.append(("eyes_high", face))
         elif au43 is not None and au43 <= AU43_LOW:
